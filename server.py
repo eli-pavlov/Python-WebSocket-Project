@@ -3,19 +3,24 @@ import socket
 import datetime
 import sqlite3 as sql
 
+# Define last_date function
 def last_date():
     current_date = datetime.datetime.now().strftime('%Y-%m-%d %H:%M')
     return str(current_date)
+print(last_date())
 
-# create and setup database if not exists:
+
+# define and create database if not exists:
+##########################################
 db_file = "data.sqlite"
 
 sql_create_table = """
 CREATE TABLE IF NOT EXISTS station_status (
-    station_id INT,
-    alarm1 INT,
-    alarm2 INT,
-    last_date TEXT
+	station_id INT,
+	alarm1 INT,
+	alarm2 INT,
+	last_date TEXT,
+	PRIMARY KEY(station_id)
 );
 """
 
@@ -30,8 +35,11 @@ INSERT INTO station_status VALUES
 """
 
 with sql.connect(db_file) as conn:
-    conn.execute(sql_create_table)
+    cur = conn.cursor()
+    cur.execute(sql_create_table)
+    conn.commit()
 
+#############################################
 
 # Set up server socket
 server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -44,10 +52,12 @@ client_sockets = [server_socket]
 
 print('Server is running...')
 
+# Main server loop
+###############################################
 while True:
     # Use select to monitor socket activity
     readable, _, _ = select.select(client_sockets, [], [])
-
+    # Iterate through connections
     for sock in readable:
         if sock is server_socket:
             # New client connection
@@ -59,11 +69,10 @@ while True:
             data = sock.recv(1024).decode()
             if data:
                 print('Received data:', data)
-                # check if database exists, if not create it
-                last_date = datetime.datetime.now().strftime('%Y-%m-%d %H:%M')
+                # Enter received data to database:
                 with sql.connect(db_file) as conn:
                     conn.execute(sql_insert_message, (station_id, alarm1, alarm2, last_date))
-                # Echo the received data back to the client
+                # Return reply to the client
                 sock.sendall(data.encode())
             else:
                 # Client has closed the connection
