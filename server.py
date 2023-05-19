@@ -3,20 +3,17 @@ import socket
 import datetime
 import sqlite3 as sql
 
-# Define last_date function
-def last_date():
-    current_date = datetime.datetime.now().strftime('%Y-%m-%d %H:%M')
-    return str(current_date)
-print(last_date())
-current_id = 0
-alarm1 = 0
-alarm2 = 0
 
+# Define last_date function
+def current_date():
+    now_date = datetime.datetime.now().strftime('%Y-%m-%d %H:%M')
+    return str(now_date)
 
 # define and create database if not exists:
 ##########################################
 db_file = "data.sqlite"
 
+# Create table instructions as variable
 sql_create_table = """
 CREATE TABLE IF NOT EXISTS station_status (
 	station_id INT,
@@ -27,20 +24,17 @@ CREATE TABLE IF NOT EXISTS station_status (
 );
 """
 
-sql_select_all_stations = """
-SELECT rowid, *
-FROM station_status;
-"""
+# SQL INJECTION protection.
+# Formatting incoming data as INTEGERS only, and using placeholders for input.
+def sql_new_data(station_id, alarm1, alarm2):
+    data_dict = {
+        'station_id': int(station_id),
+        'alarm1': int(alarm1),
+        'alarm2': int(alarm2),
+    }
+    return data_dict
 
-sql_insert_message = f"""
-INSERT INTO station_status ({current_id}, {alarm1}, {alarm2}, {last_date})
-SELECT {current_id}
-WHERE NOT EXISTS (SELECT 1 FROM station_status WHERE station_id={current_id});
-UPDATE station_status
-SET alarm1={alarm1}, alarm2={alarm2}, last_date={last_date}
-WHERE station_id={current_id};
-"""
-
+# Create the table
 with sql.connect(db_file) as conn:
     cur = conn.cursor()
     cur.execute(sql_create_table)
@@ -57,7 +51,7 @@ server_socket.listen(16)
 # List to keep track of connected clients
 client_sockets = [server_socket]
 
-print('Server is running...')
+print('Server is running...\n')
 
 # Main server loop
 ###############################################
@@ -70,28 +64,52 @@ while True:
             # New client connection
             client_socket, address = server_socket.accept()
             client_sockets.append(client_socket)
-            print('New client connected:', address)
+            print('Client connected on:', address)
         else:
             # Incoming data from a client
             data = sock.recv(1024).decode()
             if data:
                 data = eval(data)
-                print('Received data:', data)
-                current_id = int(data[0])
-                alarm1 = int(data[1])
-                alarm2 = int(data[2])
-                print(current_id)
-                print(alarm1)
-                print(alarm2)
-                # Enter received data to database:
-                with sql.connect(db_file) as conn:
-                    conn.execute(sql_insert_message)
-                    conn.commit()
+                # Incoming message type check for additional SQL injection protection
+                try:
+                    for item in data:
+                        if type(int(item)) != int or len(item) > 10000:
+                            raise Exception ("Invalid Message")
+                except Exception as e:
+                    print(f"Invalid Message received from {address}\nDatabase was not updated.")
+                    response = "Invalid message received"
+                # If message OK, proceed with DB status update
+                else:
+                    print(f"Received data from Station {data[0]} on port {address[1]}: {data}")
+                    new_data = sql_new_data(data[0], data[1], data[2])
+                    date = current_date()
+                    # Enter received data to database:
+                    with sql.connect(db_file) as conn:
+                        cur = conn.cursor()
+                        # Check if a row with the given name already exists
+                        cur.execute('SELECT * FROM station_status WHERE station_id = ?', (new_data['station_id'],))
+                        existing_row = cur.fetchone()
+                        if existing_row:
+                            # If the row exists, update it
+                            cur.execute('''
+                                UPDATE station_status
+                                SET alarm1 = ?, alarm2 = ?, last_date = ? 
+                                WHERE station_id = ?
+                            ''', (new_data['alarm1'], new_data['alarm2'], date, new_data['station_id']))
+                            print(f'Existing row updated for Station {data[0]}.')
+                        else:
+                            # If the row doesn't exist, insert a new row
+                            cur.execute('''
+                                INSERT INTO station_status (station_id, alarm1, alarm2, last_date)
+                                VALUES (?, ?, ?, ?)
+                            ''', (new_data['station_id'], new_data['alarm1'], new_data['alarm2'], date))
+                            print(f'New row inserted for Station {data[0]}.')
+                        conn.commit()
+                        response = "Status received successfully"
                 # Return reply to the client
-                response = " Station status received"
                 sock.sendall(response.encode())
             else:
                 # Client has closed the connection
-                print('Client disconnected:', sock.getpeername())
+                print('Client disconnected to save resources:', sock.getpeername(),'\n')
                 sock.close()
                 client_sockets.remove(sock)
