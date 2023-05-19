@@ -17,9 +17,9 @@ db_file = "data.sqlite"
 sql_create_table = """
 CREATE TABLE IF NOT EXISTS station_status (
 	station_id INT,
+	last_date TEXT,
 	alarm1 INT,
 	alarm2 INT,
-	last_date TEXT,
 	PRIMARY KEY(station_id)
 );
 """
@@ -93,16 +93,16 @@ while True:
                             # If the row exists, update it
                             cur.execute('''
                                 UPDATE station_status
-                                SET alarm1 = ?, alarm2 = ?, last_date = ? 
+                                SET last_date = ?, alarm1 = ?, alarm2 = ? 
                                 WHERE station_id = ?
-                            ''', (new_data['alarm1'], new_data['alarm2'], date, new_data['station_id']))
+                            ''', (date, new_data['alarm1'], new_data['alarm2'], new_data['station_id']))
                             print(f'Existing row updated for Station {data[0]}.')
                         else:
                             # If the row doesn't exist, insert a new row
                             cur.execute('''
-                                INSERT INTO station_status (station_id, alarm1, alarm2, last_date)
+                                INSERT INTO station_status (station_id, last_date, alarm1, alarm2)
                                 VALUES (?, ?, ?, ?)
-                            ''', (new_data['station_id'], new_data['alarm1'], new_data['alarm2'], date))
+                            ''', (new_data['station_id'], date, new_data['alarm1'], new_data['alarm2']))
                             print(f'New row inserted for Station {data[0]}.')
                         conn.commit()
                         response = "Status received successfully"
