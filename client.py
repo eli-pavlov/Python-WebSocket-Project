@@ -1,7 +1,7 @@
 import socket
 from time import sleep
 
-DELAY_BETWEEN_REPORTS = 5  # Seconds
+DELAY_BETWEEN_REPORTS = 60  # Seconds
 
 while True:
     try:
