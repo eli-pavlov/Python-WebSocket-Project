@@ -10,4 +10,14 @@
 
 ## :star2: About the Project
 This project is a multi-client status report application, built using websockets for TCP communications and Sqlite as lightweigt database for status storage.
-"Select" library was used to enable multiple simultaneous connections without each connection blocking each other.
+"Select" module was used to enable multiple simultaneous connections without each connection blocking each other. Each client sends its status stored by sensors
+in status.txt to the server. The server stores the status in 'data.sqlite' database in the project directory.
+- For real life usage file size limit mechanism should be added. -
+
+To execute:
+1. Run server.py
+2. Run client.py
+3. Optionally add as many clients as needed, client2 and client3 were added for convenience.
+
+To change status of each client:
+1. edit status.txt
