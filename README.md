@@ -9,4 +9,4 @@
 </div>
 
 ## :star2: About the Project
-test
+This project is a sample application that 
