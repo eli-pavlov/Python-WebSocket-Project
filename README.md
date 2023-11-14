@@ -9,4 +9,5 @@
 </div>
 
 ## :star2: About the Project
-This project is a sample application that 
+This project is a multi-client status report application, built using websockets for TCP communications and Sqlite as lightweigt database for status storage.
+"Select" library was used to enable multiple simultaneous connections without each connection blocking each other.
